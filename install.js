@@ -22,6 +22,10 @@ const userAccountSchema = new mongoose.Schema({
     mail: {
         type: String,
         required: true
+    },
+    creationDate: {
+        type: Date,
+        require: true
     }
 });
 
@@ -33,7 +37,8 @@ let arr = [{
     accountUserName: "Caal2301",
     userName: "Calle Alexanderson",
     password: "Lösenord",
-    mail: "calle.alexanderson@telia.com"
+    mail: "calle.alexanderson@telia.com",
+    creationDate: new Date()
 }]
 
 
