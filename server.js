@@ -1,14 +1,15 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-
+const bcrypt = require("bcrypt")
+require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
 
-mongoose.connect("mongodb://localhost:27017/dt207lab4").then(() => {
+mongoose.connect(process.env.DATABASE).then(() => {
     console.log("connected to mongoDB");
 }).catch((err) => {
     console.log("error when connecting to database: " + err);
@@ -50,21 +51,41 @@ app.get("/users", async (req, res) => {
 })
 
 //logga in
-app.post("/users:accname", async (req, res) => {
+app.post("/users/login", async (req, res) => {
     try {
-        let result = await userAccount.find({ accountUserName: req.params.accname });
 
-        return res.json(result);
+        const { accountUserName, password } = req.body;
+
+        if (!accountUserName || !password) {
+            return res.status(400).json({ error: "Invalid input, send accountUserName and password" })
+        } else {
+            //hämtar user
+            const user = await userAccount.find({ accountUserName: req.body.accountUserName });
+
+            if (user) { //om user finns kollas lösenord
+                if (await bcrypt.compare(password, user[0].password)) { //om lösenord är korrekt skickas user tillbaka
+                    return res.json(user);
+                } else {
+                    return res.status(400).json({ message: "incorrect accountUserName/password" });
+                }
+            } else {
+                return res.status(400).json({ message: "incorrect accountUserName/password" });
+            }
+        }
     } catch (err) {
         return res.status(400).json(err);
     }
 })
 
 // skapa konto
-app.post("/users", async (req, res) => {
+app.post("/users/register", async (req, res) => {
     try {
+        let { accountUserName, userName, password, mail, creationDate } = req.body;
+        if (!accountUserName || !userName || !password || !mail || !creationDate) {
+            return res.status(400).json({ error: "Invalid input, send accountUserName, userName, password, mail and creationDate" })
+        }
         let activeAccs = await userAccount.find({});
-
+        password = await bcrypt.hash(password, 10); //hashar password
         if (activeAccs) {
             let uniqueName = true;
             //kollar om användarnamn redan används
@@ -74,11 +95,13 @@ app.post("/users", async (req, res) => {
                 }
             }
             if (uniqueName == true) {
-                let result = await userAccount.create(req.body);
+                let result = await userAccount.create({ accountUserName, userName, password, mail, creationDate });
                 return res.json(result);
             } else {
                 return res.status(400).json({ message: "kontonamn används redan" })
             }
+        } else {
+            return res.status(500).json({ message: "Konton kan inte hämtas" });
         }
     } catch (err) {
         return res.status(400).json(err);

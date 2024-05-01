@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-mongoose.connect("mongodb://localhost:27017/dt207lab4").then(() => {
+mongoose.connect(process.env.DATABASE).then(() => {
     console.log("connected to mongoDB");
 }).catch((err) => {
     console.log("error when connecting to database: " + err);
