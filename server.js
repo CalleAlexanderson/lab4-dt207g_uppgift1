@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt")
+const jwt = require("jsonwebtoken")
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ const userAccountSchema = new mongoose.Schema({
 
 const userAccount = mongoose.model("userAccount", userAccountSchema);
 
+// visa alla användare
 app.get("/users", async (req, res) => {
     try {
         let result = await userAccount.find({});
@@ -64,7 +66,14 @@ app.post("/users/login", async (req, res) => {
 
             if (user) { //om user finns kollas lösenord
                 if (await bcrypt.compare(password, user[0].password)) { //om lösenord är korrekt skickas user tillbaka
-                    return res.json(user);
+                    //skapar en JWT, taget från videon i läsanvisningar
+                    const payload = {accountUserName: accountUserName} 
+                    const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, {expiresIn: '1h'})
+                    const respone = {
+                        user: user,
+                        token: token
+                    }
+                    return res.json(respone);
                 } else {
                     return res.status(400).json({ message: "incorrect accountUserName/password" });
                 }
@@ -76,6 +85,27 @@ app.post("/users/login", async (req, res) => {
         return res.status(400).json(err);
     }
 })
+
+//om JWT är korrekt skickas det tillbaka länk till cats.html så användaren kan gå till sidan
+app.get("/users/protected", authenticateToken, (req, res) =>{
+    res.json({protectedSite: "http://localhost:1234/cats.html"})
+})
+
+//kollar om JWT är korrekt, taget från videon i läsanvisningar
+function authenticateToken(req,res, next) {
+    const authheader = req.headers['authorization'];
+    const token = authheader && authheader.split(' ')[1]; // tar bort bearer
+
+    if (token == null) {
+        res.status(401).json({message: "not authorized to see this content, pls log in first"})
+    }
+    jwt.verify(token, process.env.JWT_SECRET_KEY, (err)=>{
+        if (err) {
+            return res.status(403).json({message: "not correct JWT"})
+        }
+    })
+    next();
+}
 
 // skapa konto
 app.post("/users/register", async (req, res) => {
@@ -101,7 +131,7 @@ app.post("/users/register", async (req, res) => {
                 return res.status(400).json({ message: "kontonamn används redan" })
             }
         } else {
-            return res.status(500).json({ message: "Konton kan inte hämtas" });
+            return res.status(500).json({ message: "Konton kan inte hämtas för att kolla om kontonamn är unikt" });
         }
     } catch (err) {
         return res.status(400).json(err);
@@ -109,27 +139,34 @@ app.post("/users/register", async (req, res) => {
 })
 
 //change password, inte säkert alls eftersom alla kan ändra lösenord
-app.put("/users/:accname", async (req, res) => {
+app.put("/users/updatepassword", async (req, res) => {
     try {
-        let result = await userAccount.updateOne({ accountUserName: req.params.accname },
-            {
-                $set: {
-                    "password": req.body.password,
-                }
-            });
-
-        return res.json(result);
+        const { accountUserName, password } = req.body;
+        let hashedPass = await bcrypt.hash(password, 10); //hashar password
+        if (hashedPass) {
+            let result = await userAccount.updateOne({ accountUserName: accountUserName },
+                {
+                    $set: {
+                        "password": hashedPass,
+                    }
+                });
+    
+            return res.json(result);
+        }
     } catch (err) {
         return res.status(400).json(err);
     }
 })
 
 //delete account
-app.delete("/users/:accname", async (req, res) => {
+app.delete("/users/delete", async (req, res) => {
     try {
-        // ska ta med en password från body, ska kolla att det stämmer så bara de med lösnord kan ta bort kontot
-        if (true) {
-            let result = await userAccount.deleteOne({ accountUserName: req.params.accname });
+        const { accountUserName, password } = req.body;
+        const user = await userAccount.find({ accountUserName: accountUserName });
+
+        //kollar så lösenord stämmer
+        if (await bcrypt.compare(password, user[0].password)) {
+            let result = await userAccount.deleteOne({ accountUserName: accountUserName });
             return res.json(result);
         } else {
             return res.json({ message: "felaktigt användarnamn eller lösenord" })

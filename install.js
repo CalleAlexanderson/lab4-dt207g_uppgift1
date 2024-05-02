@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+require("dotenv").config();
 
 mongoose.connect(process.env.DATABASE).then(() => {
     console.log("connected to mongoDB");
@@ -29,21 +30,15 @@ const userAccountSchema = new mongoose.Schema({
     }
 });
 
+const crypto = require("crypto")
+console.log(crypto.randomBytes(64).toString('hex'));
+
 const userAccount = mongoose.model("userAccount", userAccountSchema);
 
 removeAllDocuments();
-
-let arr = [{
-    accountUserName: "Caal2301",
-    userName: "Calle Alexanderson",
-    password: "Lösenord",
-    mail: "calle.alexanderson@telia.com",
-    creationDate: new Date()
-}]
 
 
 async function removeAllDocuments() {
     const result = await userAccount.deleteMany({});
     console.log(result);
-    userAccount.insertMany(arr)
 }
