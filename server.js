@@ -91,6 +91,11 @@ app.get("/users/protected", authenticateToken, (req, res) =>{
     res.json({protectedSite: "http://localhost:1234/cats.html"})
 })
 
+//om JWT är korrekt skickas det tillbaka info om katten på bilden
+app.get("/users/cat", authenticateToken, (req, res) =>{
+    res.json({catName: "Blixtis", catAge: "17"})
+})
+
 //kollar om JWT är korrekt, taget från videon i läsanvisningar
 function authenticateToken(req,res, next) {
     const authheader = req.headers['authorization'];
