@@ -102,14 +102,15 @@ function authenticateToken(req,res, next) {
     const token = authheader && authheader.split(' ')[1]; // tar bort bearer
 
     if (token == null) {
-        res.status(401).json({message: "not authorized to see this content, pls log in first"})
+        return res.status(401).json({message: "not authorized to see this content, pls log in first"})
     }
     jwt.verify(token, process.env.JWT_SECRET_KEY, (err)=>{
         if (err) {
             return res.status(403).json({message: "not correct JWT"})
+        } else {  
+            next();
         }
     })
-    next();
 }
 
 // skapa konto
